@@ -8,7 +8,8 @@ namespace NexBusiness.Repositories.RavenDb.Common
         IQueryable<T> All();
         T ById(string id);
         T ById(ValueType valueType);
-        T Save(T entity);
+        T Add(T entity);
+        T Update(T entity);
         void Delete(string id);
     }
 }

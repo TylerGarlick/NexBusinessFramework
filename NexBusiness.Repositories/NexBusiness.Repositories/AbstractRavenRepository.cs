@@ -6,39 +6,46 @@ using Raven.Client;
 
 namespace NexBusiness.Repositories.RavenDb.Core
 {
-    public abstract class AbstractRavenRepository<T> : IRepository<T>
+    public abstract class AbstractRavenRepository<T> : IRepository<T>, IDisposable
     {
         protected IDocumentStore DocumentStore { get; private set; }
-
+        protected IDocumentSession DocumentSession { get; private set; }
         protected AbstractRavenRepository(IDocumentStore documentStore)
         {
             DocumentStore = documentStore;
+            DocumentSession = DocumentStore.OpenSession();
         }
 
         public IQueryable<T> All()
         {
-            using (var ds = DocumentStore.OpenSession())
-                return ds.Query<T>();
+            return DocumentSession.Query<T>();
         }
         public T ById(string id)
         {
-            using (var ds = DocumentStore.OpenSession())
-                return ds.Load<T>(id);
+            return DocumentSession.Load<T>(id);
         }
 
         public T ById(ValueType valueType)
         {
-            using (var ds = DocumentStore.OpenSession())
-                return ds.Load<T>(valueType);
+            return DocumentSession.Load<T>(valueType);
         }
 
-        public T Save(T entity)
+        public T Add(T entity)
         {
             using (var transaction = new TransactionScope())
-            using (var ds = DocumentStore.OpenSession())
             {
-                ds.Store(entity);
-                ds.SaveChanges();
+                DocumentSession.Store(entity);
+                DocumentSession.SaveChanges();
+                transaction.Complete();
+                return entity;
+            }
+        }
+
+        public T Update(T entity)
+        {
+            using (var transaction = new TransactionScope())
+            {
+                DocumentSession.SaveChanges();
                 transaction.Complete();
                 return entity;
             }
@@ -47,13 +54,17 @@ namespace NexBusiness.Repositories.RavenDb.Core
         public void Delete(string id)
         {
             using (var transaction = new TransactionScope())
-            using (var ds = DocumentStore.OpenSession())
             {
-                var entity = ds.Load<T>(id);
-                ds.Delete(entity);
-                ds.SaveChanges();
+                var entity = DocumentSession.Load<T>(id);
+                DocumentSession.Delete(entity);
+                DocumentSession.SaveChanges();
                 transaction.Complete();
             }
+        }
+
+        public void Dispose()
+        {
+            DocumentSession.Dispose();
         }
     }
 }
